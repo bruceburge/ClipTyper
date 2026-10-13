@@ -242,7 +242,7 @@
     {
       name: "The fortress",
       tech: "A keydown handler cancels everything except navigation and editing keys. Kiosk and lockdown style.",
-      expect: "Paste: <b>blocked if it comes by keyboard</b>. Typer: <b>uncertain</b>. Injected characters may or may not survive a handler this aggressive, and finding out is the point of a test bed.",
+      expect: "Paste: <b>blocked</b>. Typer: <b>blocked</b>. Verified 2026-10-12 in Firefox: canceling keydown stops injected Unicode characters too, so the field stays empty. A handler this aggressive beats typing as well.",
       type: "text",
       setup: function (el) {
         var allowed = ["Tab", "Escape", "Backspace", "Delete", "ArrowLeft", "ArrowRight",
@@ -319,7 +319,16 @@
     host.appendChild(card);
 
     checkBtn.addEventListener("click", function () { check(field, result); });
-    fields.push({ field: field, result: result });
+
+    var entry = { field: field, result: result, attempted: false };
+    // An attempt counts even when it is blocked outright and the field ends
+    // up empty. Blocked attempts still fire keydown, paste, or input events
+    // on the field before the handler cancels them, so listen for the events
+    // themselves rather than for content appearing.
+    ["keydown", "paste", "input", "drop"].forEach(function (ev) {
+      field.addEventListener(ev, function () { entry.attempted = true; });
+    });
+    fields.push(entry);
   });
 
   function getValue(field) {
@@ -343,7 +352,7 @@
     while (i < Math.min(actual.length, EXPECTED.length) && actual[i] === EXPECTED[i]) i++;
     var msg = "No match. Got " + actual.length + " of " + EXPECTED.length + " characters.";
     if (actual.length === 0) {
-      msg += " The field is empty: the attempt was blocked outright.";
+      msg += " The field is empty: nothing landed, so if you did try, the attempt was blocked outright.";
     } else if (i < Math.min(actual.length, EXPECTED.length)) {
       msg += " First difference at position " + (i + 1) + ": expected '" + EXPECTED[i] +
              "', got '" + actual[i] + "'. Field contains: " + actual;
@@ -356,14 +365,16 @@
   }
 
   document.getElementById("checkAllBtn").addEventListener("click", function () {
-    var passes = 0, attempted = 0;
+    var passes = 0, tried = 0;
     fields.forEach(function (f) {
-      if (getValue(f.field).length > 0) { attempted++; if (check(f.field, f.result)) passes++; }
+      // A blocked attempt leaves an empty field, and empty is a result,
+      // not a skip. Only fields never interacted with count as untested.
+      if (f.attempted) { tried++; if (check(f.field, f.result)) passes++; }
       else { f.result.className = "result idle"; f.result.textContent = "Not attempted yet."; }
     });
     document.getElementById("summary").textContent =
-      attempted === 0 ? "Nothing to check yet. Try some fields first."
-                      : passes + " of " + attempted + " attempted fields hold the exact string.";
+      tried === 0 ? "Nothing to check yet. Try some fields first."
+                   : passes + " of " + tried + " attempted fields hold the exact string.";
   });
 })();
 </script>
