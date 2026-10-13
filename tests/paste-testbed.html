@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paste Blocker Test Bed for ClipTyper</title>
+<style>
+  :root, [data-theme="dark"] {
+    --bg: #12161c; --panel: #1b212b; --panel2: #232b37; --text: #e8edf3;
+    --muted: #9fb0c1; --accent: #2dd4bf; --accent2: #38bdf8;
+    --border: #334155; --pass: #34d399; --fail: #f87171; --warn: #fbbf24;
+    --input-bg: #0d1117;
+  }
+  [data-theme="light"] {
+    --bg: #f1f5f9; --panel: #ffffff; --panel2: #e8eef5; --text: #0f172a;
+    --muted: #52657a; --accent: #0d9488; --accent2: #0369a1;
+    --border: #c3cfdd; --pass: #059669; --fail: #dc2626; --warn: #b45309;
+    --input-bg: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.5;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 18px 60px; }
+  header { display: flex; align-items: flex-start; gap: 12px; }
+  header h1 { font-size: 24px; margin: 0 0 4px; }
+  header p.sub { margin: 0; color: var(--muted); }
+  #themeBtn { margin-left: auto; flex: none; }
+  button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #06281f; font-weight: 600; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; margin-top: 18px;
+  }
+  .panel h2 { font-size: 16px; margin: 0 0 8px; }
+  .panel p { margin: 6px 0; }
+  .muted { color: var(--muted); }
+  ol.steps { margin: 8px 0 0; padding-left: 22px; }
+  ol.steps li { margin: 3px 0; }
+  .teststring {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--input-bg); border: 1px dashed var(--border);
+    border-radius: 8px; padding: 10px 12px; margin-top: 10px;
+  }
+  .teststring code { font-size: 17px; letter-spacing: 0.4px; }
+  .case { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-top: 16px; }
+  .case h3 { margin: 0 0 2px; font-size: 15px; }
+  .case h3 .num { color: var(--accent); margin-right: 6px; }
+  .case .tech { color: var(--muted); font-size: 13px; margin: 2px 0; }
+  .case .expect { font-size: 13px; margin: 6px 0 10px; }
+  .case .expect b { color: var(--accent2); font-weight: 600; }
+  .fieldrow { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+  .fieldrow input[type="text"], .fieldrow input[type="password"], .editable {
+    flex: 1 1 320px; background: var(--input-bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+    font-family: Consolas, "Cascadia Mono", monospace; font-size: 15px; min-height: 38px;
+  }
+  .editable { outline: none; }
+  .editable:empty::before { content: "Click here, then type or paste"; color: var(--muted); font-family: "Segoe UI", system-ui, sans-serif; font-size: 13px; }
+  .result { font-size: 13px; margin-top: 9px; min-height: 18px; font-family: Consolas, monospace; word-break: break-all; }
+  .result.pass { color: var(--pass); }
+  .result.fail { color: var(--fail); }
+  .result.idle { color: var(--muted); }
+  #summary { font-weight: 600; }
+  footer { margin-top: 26px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Paste Blocker Test Bed</h1>
+      <p class="sub">Eleven fields, eleven ways real apps refuse a paste. Built to test ClipTyper, which types instead.</p>
+    </div>
+    <button id="themeBtn" type="button">Day mode</button>
+  </header>
+
+  <div class="panel">
+    <h2>How to run a test</h2>
+    <ol class="steps">
+      <li>Copy the test string below. It is loaded with layout troublemakers: braces, backslash, tilde, caret, and a euro sign.</li>
+      <li>Click a field and try a normal paste (Ctrl+V, Shift+Insert, or right-click, Paste). Note what happens.</li>
+      <li>Clear the field, click it again, and press <b>Ctrl+Alt+V</b> with ClipTyper running so it types the string instead.</li>
+      <li>Hit Check on that case. Exact match means every character landed, in order.</li>
+    </ol>
+    <div class="teststring">
+      <code id="expectedText"></code>
+      <button id="copyBtn" type="button" class="primary">Copy test string</button>
+      <span id="copyNote" class="muted"></span>
+    </div>
+    <p class="muted">The expectation line on each case is a prediction, not a promise. The check is the verdict. A few cases are designed to mangle or truncate no matter what you do, and those are labeled.</p>
+    <p><button id="checkAllBtn" type="button">Check all fields</button> <span id="summary"></span></p>
+  </div>
+
+  <div id="cases"></div>
+
+  <footer>
+    <p>Works offline straight from disk. Open it in any browser. The one case no tool can fully beat is a field whose own code rewrites what lands in it (cases 8 and 9): the keystrokes arrive fine, the field itself does the damage.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var EXPECTED = "T3st}P@s\\s{w0rd#9!~^€";
+  document.getElementById("expectedText").textContent = EXPECTED;
+
+  // Theme toggle
+  var themeBtn = document.getElementById("themeBtn");
+  themeBtn.addEventListener("click", function () {
+    var html = document.documentElement;
+    var dark = html.getAttribute("data-theme") === "dark";
+    html.setAttribute("data-theme", dark ? "light" : "dark");
+    themeBtn.textContent = dark ? "Night mode" : "Day mode";
+  });
+
+  // Copy with the fallback Firefox sometimes needs
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    var note = document.getElementById("copyNote");
+    function done() { note.textContent = "Copied. Go break some fields."; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(EXPECTED).then(done, function () { fallback(); });
+    } else { fallback(); }
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = EXPECTED;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); }
+      catch (e) { note.textContent = "Copy failed. Select the string and copy it by hand."; }
+      document.body.removeChild(ta);
+    }
+  });
+
+  var cases = [
+    {
+      name: "Control field",
+      tech: "No blocking at all. The baseline.",
+      expect: "Paste: <b>works</b>. Typer: <b>works</b>. If this one fails, the problem is not the page.",
+      type: "text", setup: function () {}
+    },
+    {
+      name: "Paste event canceled",
+      tech: "A paste event listener calls preventDefault. The most common blocker on the web.",
+      expect: "Paste: <b>blocked</b>. Typer: <b>full string</b>, because typing never raises a paste event.",
+      type: "text",
+      setup: function (el) { el.addEventListener("paste", function (e) { e.preventDefault(); }); }
+    },
+    {
+      name: "Right-click menu disabled",
+      tech: "contextmenu is canceled. Only stops mouse users, a classic half-measure.",
+      expect: "Paste by right-click: <b>blocked</b>. Paste by Ctrl+V: <b>works</b>. Typer: <b>full string</b>.",
+      type: "text",
+      setup: function (el) { el.addEventListener("contextmenu", function (e) { e.preventDefault(); }); }
+    },
+    {
+      name: "Ctrl+V intercepted",
+      tech: "A keydown handler swallows Ctrl+V, Cmd+V, and Shift+Insert. Seen on banking and exam sites.",
+      expect: "Paste by keyboard: <b>blocked</b>. Typer: <b>full string</b>, because it never sends Ctrl+V.",
+      type: "text",
+      setup: function (el) {
+        el.addEventListener("keydown", function (e) {
+          var v = e.key === "v" || e.key === "V";
+          if ((e.ctrlKey || e.metaKey) && v) e.preventDefault();
+          if (e.shiftKey && e.key === "Insert") e.preventDefault();
+        });
+      }
+    },
+    {
+      name: "Confirm password style",
+      tech: "Paste and drag-and-drop both canceled, autocomplete off. The bank confirm-field pattern that forces manual typing.",
+      expect: "Paste and drop: <b>blocked</b>. Typer: <b>full string</b>. This is the field ClipTyper was born for.",
+      type: "password",
+      setup: function (el) {
+        el.setAttribute("autocomplete", "off");
+        el.addEventListener("paste", function (e) { e.preventDefault(); });
+        el.addEventListener("drop", function (e) { e.preventDefault(); });
+        el.addEventListener("dragover", function (e) { e.preventDefault(); });
+      }
+    },
+    {
+      name: "Burst insertion reverted",
+      tech: "An input handler reverts any change that adds more than one character at once. Some anti-autofill widgets do exactly this.",
+      expect: "Paste: <b>reverted to empty</b>. Typer: <b>full string</b>, one honest character at a time.",
+      type: "text",
+      setup: function (el) {
+        el._prev = "";
+        el.addEventListener("focus", function () { el._prev = el.value; });
+        el.addEventListener("input", function () {
+          if (el.value.length - el._prev.length > 1) { el.value = el._prev; }
+          else { el._prev = el.value; }
+        });
+      }
+    },
+    {
+      name: "Symbol filter",
+      tech: "A keydown handler rejects every character that is not a letter or digit. Paste walks straight past it, typing does not.",
+      expect: "Paste: <b>full string</b> (paste is not a keydown). Typer: <b>letters and digits only</b>, symbols refused. The one case where paste beats typing.",
+      type: "text",
+      setup: function (el) {
+        el.addEventListener("keydown", function (e) {
+          if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !/[a-zA-Z0-9]/.test(e.key)) {
+            e.preventDefault();
+          }
+        });
+      }
+    },
+    {
+      name: "Digit mask",
+      tech: "An input handler strips every non-digit, like a phone or card field. The field itself mangles whatever arrives.",
+      expect: "Paste and typer alike: <b>digits only survive</b> (3, 5, 9). Nobody wins this one; the field is the problem.",
+      type: "text",
+      setup: function (el) {
+        el.addEventListener("input", function () {
+          var clean = el.value.replace(/[^0-9]/g, "");
+          if (clean !== el.value) el.value = clean;
+        });
+      }
+    },
+    {
+      name: "Truncated at 8 characters",
+      tech: "maxlength=8, like a PIN or a short code box.",
+      expect: "Paste and typer alike: <b>first 8 characters only</b>. The check compares against the full string, so it reports a mismatch at position 8. That is correct behavior for this field.",
+      type: "text",
+      setup: function (el) { el.setAttribute("maxlength", "8"); }
+    },
+    {
+      name: "Rich text editor area",
+      tech: "A contenteditable region with paste canceled, the document and email editor pattern.",
+      expect: "Paste: <b>blocked</b>. Typer: <b>full string</b>.",
+      type: "editable",
+      setup: function (el) { el.addEventListener("paste", function (e) { e.preventDefault(); }); }
+    },
+    {
+      name: "The fortress",
+      tech: "A keydown handler cancels everything except navigation and editing keys. Kiosk and lockdown style.",
+      expect: "Paste: <b>blocked if it comes by keyboard</b>. Typer: <b>uncertain</b>. Injected characters may or may not survive a handler this aggressive, and finding out is the point of a test bed.",
+      type: "text",
+      setup: function (el) {
+        var allowed = ["Tab", "Escape", "Backspace", "Delete", "ArrowLeft", "ArrowRight",
+                       "ArrowUp", "ArrowDown", "Home", "End", "Control", "Alt", "Shift",
+                       "Meta", "CapsLock", "Insert"];
+        el.addEventListener("keydown", function (e) {
+          if (allowed.indexOf(e.key) === -1) e.preventDefault();
+        });
+        el.addEventListener("paste", function (e) { e.preventDefault(); });
+      }
+    }
+  ];
+
+  var host = document.getElementById("cases");
+  var fields = [];
+
+  cases.forEach(function (c, i) {
+    var card = document.createElement("div");
+    card.className = "case";
+
+    var h = document.createElement("h3");
+    h.innerHTML = "<span class='num'>" + (i + 1) + ".</span>" + c.name;
+    card.appendChild(h);
+
+    var tech = document.createElement("p");
+    tech.className = "tech";
+    tech.textContent = c.tech;
+    card.appendChild(tech);
+
+    var exp = document.createElement("p");
+    exp.className = "expect";
+    exp.innerHTML = "Expectation: " + c.expect;
+    card.appendChild(exp);
+
+    var row = document.createElement("div");
+    row.className = "fieldrow";
+
+    var field;
+    if (c.type === "editable") {
+      field = document.createElement("div");
+      field.className = "editable";
+      field.setAttribute("contenteditable", "true");
+    } else {
+      field = document.createElement("input");
+      field.type = c.type;
+      field.setAttribute("spellcheck", "false");
+      field.setAttribute("placeholder", "Click here, then paste or type");
+    }
+    c.setup(field);
+    row.appendChild(field);
+
+    var clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.textContent = "Clear";
+    clearBtn.addEventListener("click", function () {
+      setValue(field, c, "");
+      result.textContent = "";
+      result.className = "result idle";
+      field.focus();
+    });
+    row.appendChild(clearBtn);
+
+    var checkBtn = document.createElement("button");
+    checkBtn.type = "button";
+    checkBtn.textContent = "Check";
+    row.appendChild(checkBtn);
+
+    card.appendChild(row);
+
+    var result = document.createElement("div");
+    result.className = "result idle";
+    card.appendChild(result);
+
+    host.appendChild(card);
+
+    checkBtn.addEventListener("click", function () { check(field, result); });
+    fields.push({ field: field, result: result });
+  });
+
+  function getValue(field) {
+    if (field.tagName === "DIV") return field.textContent.replace(/\n+$/, "");
+    return field.value;
+  }
+
+  function setValue(field, c, v) {
+    if (field.tagName === "DIV") { field.textContent = v; }
+    else { field.value = v; if (field._prev !== undefined) field._prev = v; }
+  }
+
+  function check(field, result) {
+    var actual = getValue(field);
+    if (actual === EXPECTED) {
+      result.className = "result pass";
+      result.textContent = "PASS: exact match, all " + EXPECTED.length + " characters landed.";
+      return true;
+    }
+    var i = 0;
+    while (i < Math.min(actual.length, EXPECTED.length) && actual[i] === EXPECTED[i]) i++;
+    var msg = "No match. Got " + actual.length + " of " + EXPECTED.length + " characters.";
+    if (actual.length === 0) {
+      msg += " The field is empty: the attempt was blocked outright.";
+    } else if (i < Math.min(actual.length, EXPECTED.length)) {
+      msg += " First difference at position " + (i + 1) + ": expected '" + EXPECTED[i] +
+             "', got '" + actual[i] + "'. Field contains: " + actual;
+    } else {
+      msg += " The first " + i + " characters are right, then it stops or runs on. Field contains: " + actual;
+    }
+    result.className = "result fail";
+    result.textContent = msg;
+    return false;
+  }
+
+  document.getElementById("checkAllBtn").addEventListener("click", function () {
+    var passes = 0, attempted = 0;
+    fields.forEach(function (f) {
+      if (getValue(f.field).length > 0) { attempted++; if (check(f.field, f.result)) passes++; }
+      else { f.result.className = "result idle"; f.result.textContent = "Not attempted yet."; }
+    });
+    document.getElementById("summary").textContent =
+      attempted === 0 ? "Nothing to check yet. Try some fields first."
+                      : passes + " of " + attempted + " attempted fields hold the exact string.";
+  });
+})();
+</script>
+</body>
+</html>

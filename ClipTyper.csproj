@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ClipTyper</RootNamespace>
+    <AssemblyName>ClipTyper</AssemblyName>
+    <!-- AssemblyInfo.cs is maintained by hand (Properties\AssemblyInfo.cs). -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Lets the project build on non-Windows machines (CI, Linux build box). -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- ClipTyper is Windows-only by design (Win32 hotkeys, clipboard, tray).
+         CA1416 platform-reachability warnings are noise for a single-platform
+         app and fire spuriously on non-Windows build hosts. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same artwork as the application icon, loaded at runtime for the tray. -->
+    <EmbeddedResource Include="Assets\app.ico" LogicalName="ClipTyper.app.ico" />
+  </ItemGroup>
+
+</Project>
